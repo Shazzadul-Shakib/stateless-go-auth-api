@@ -1,11 +1,12 @@
 package auth
 
-import "time"
+import (
+	"gorm.io/gorm"
+)
 
 type User struct {
-	ID       uint
+	gorm.Model
 	Name     string
-	Email    string
+	Email    string `gorm:"uniqueIndex;not null"`
 	Password string
-	CreatedAt time.Time
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/Shazzadul-Shakib/go-auth-api/internal/modules/auth"
 	"github.com/Shazzadul-Shakib/go-auth-api/internal/platform"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -22,12 +23,16 @@ func main() {
 		log.Fatal("DATABASE_URL is not set")
 	}
 
-	pool, err := platform.NewPostgres(ctx, dbURL)
+	db, err := platform.NewPostgres(ctx, dbURL)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("failed to connect to postgres: ", err)
 	}
-	defer pool.Close()
 	log.Println("connected to postgres")
+
+	if err := db.AutoMigrate(&auth.User{}); err != nil {
+		log.Fatal("failed to migrate database: ", err)
+	}
+	log.Println("database migrated")
 
 	router := gin.Default()
 	router.GET("/ping", func(c *gin.Context) {
@@ -35,5 +40,7 @@ func main() {
 			"message": "pong",
 		})
 	})
-	router.Run()
+	if err := router.Run(); err != nil {
+		log.Fatal("server failed: ", err)
+	}
 }

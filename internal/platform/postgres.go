@@ -4,17 +4,14 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
-func NewPostgres(ctx context.Context, url string) (*pgxpool.Pool, error) {
-    pool, err := pgxpool.New(ctx, url)
-    if err != nil {
-        return nil, err
-    }
-    if err := pool.Ping(ctx); err != nil {
-        pool.Close()
-        return nil, fmt.Errorf("postgres ping: %w", err)
-    }
-    return pool, nil
+func NewPostgres(ctx context.Context, url string) (*gorm.DB, error) {
+	db, err := gorm.Open(postgres.Open(url), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("gorm open: %w", err)
+	}
+	return db, nil
 }
