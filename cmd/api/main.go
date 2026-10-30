@@ -34,7 +34,7 @@ func main() {
 	}
 	log.Println("database migrated")
 
-	router := router.New()
+	router := router.New(db)
 	if err := router.Run(); err != nil {
 		log.Fatal("server failed: ", err)
 	}

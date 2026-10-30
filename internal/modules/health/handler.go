@@ -13,5 +13,10 @@ func NewHandler(svc *Service) *Handler {
 }
 
 func (h *Handler) HealthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, h.svc.Check())
+	res := h.svc.Check(c.Request.Context())
+	code := http.StatusOK
+	if res.Status != "ok" {
+		code = http.StatusServiceUnavailable
+	}
+	c.JSON(code, res)
 }
