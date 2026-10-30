@@ -7,7 +7,7 @@ import (
 
 	"github.com/Shazzadul-Shakib/go-auth-api/internal/modules/auth"
 	"github.com/Shazzadul-Shakib/go-auth-api/internal/platform"
-	"github.com/gin-gonic/gin"
+	"github.com/Shazzadul-Shakib/go-auth-api/internal/router"
 	"github.com/joho/godotenv"
 )
 
@@ -34,12 +34,7 @@ func main() {
 	}
 	log.Println("database migrated")
 
-	router := gin.Default()
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
+	router := router.New()
 	if err := router.Run(); err != nil {
 		log.Fatal("server failed: ", err)
 	}
