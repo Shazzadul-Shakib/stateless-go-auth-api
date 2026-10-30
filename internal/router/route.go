@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/Shazzadul-Shakib/go-auth-api/internal/modules/auth"
 	"github.com/Shazzadul-Shakib/go-auth-api/internal/modules/health"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -12,5 +13,8 @@ func New(db *gorm.DB) *gin.Engine {
 
 	healthHandler := health.NewHandler(health.NewService(db))
 	health.RegisterRoutes(api, healthHandler)
+
+	authHandler := auth.NewHandler(auth.NewService(auth.NewRepository(db)))
+	auth.RegisterRoutes(api, authHandler)
 	return r
 }
