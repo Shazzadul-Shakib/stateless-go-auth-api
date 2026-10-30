@@ -9,6 +9,7 @@ import (
 )
 
 var ErrEmailTaken = errors.New("email already registered")
+var ErrUserNotFound = errors.New("user not found")
 
 type Service struct{ repo Repository }
 
@@ -30,5 +31,13 @@ func (s *Service) RegisterUser(ctx context.Context, in RegisterUser) (*UserRespo
 		return nil, err
 	}
 
+	return &UserResponse{ID: user.ID, Name: user.Name, Email: user.Email}, nil
+}
+
+func (s *Service) GetUserByEmail(ctx context.Context, email string) (*UserResponse, error) {
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
 	return &UserResponse{ID: user.ID, Name: user.Name, Email: user.Email}, nil
 }

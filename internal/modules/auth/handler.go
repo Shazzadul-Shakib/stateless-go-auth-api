@@ -32,3 +32,18 @@ func (h *Handler) RegisterUserHandler(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, res)
 }
+
+func (h *Handler) GetUserByEmailHandler(c *gin.Context) {
+	email := c.Param("email")
+	user, err := h.svc.GetUserByEmail(c.Request.Context(), email)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
