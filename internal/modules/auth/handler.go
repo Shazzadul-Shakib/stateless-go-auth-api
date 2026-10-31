@@ -3,7 +3,7 @@ package auth
 import (
 	"net/http"
 
-	apperr "github.com/Shazzadul-Shakib/go-auth-api/internal/errors"
+	"github.com/Shazzadul-Shakib/go-auth-api/internal/apperr"
 	"github.com/gin-gonic/gin"
 )
 
