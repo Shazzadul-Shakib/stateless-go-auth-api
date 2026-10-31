@@ -7,7 +7,7 @@ import (
 )
 
 type Repository interface {
-	Create(ctx context.Context, user *User) error
+	Create(ctx context.Context, user *User) (*User, error)
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
 }
 
@@ -17,8 +17,11 @@ func NewRepository(db *gorm.DB) Repository {
 	return &repository{db: db}
 }
 
-func (r *repository) Create(ctx context.Context, user *User) error {
-	return r.db.WithContext(ctx).Create(user).Error
+func (r *repository) Create(ctx context.Context, user *User) (*User, error) {
+	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 func (r *repository) GetUserByEmail(ctx context.Context, email string) (*User, error) {

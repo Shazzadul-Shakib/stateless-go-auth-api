@@ -4,12 +4,9 @@ import (
 	"context"
 	"errors"
 
-	"golang.org/x/crypto/bcrypt"
+	"github.com/Shazzadul-Shakib/go-auth-api/internal/utils"
 	"gorm.io/gorm"
 )
-
-var ErrEmailTaken = errors.New("email already registered")
-var ErrUserNotFound = errors.New("user not found")
 
 type Service struct{ repo Repository }
 
@@ -18,13 +15,13 @@ func NewService(repo Repository) *Service {
 }
 
 func (s *Service) RegisterUser(ctx context.Context, in RegisterUser) (*UserResponse, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
+	hash, err := utils.HashPassword(in.Password)
 	if err != nil {
 		return nil, err
 	}
 
-	user := &User{Name: in.Name, Email: in.Email, Password: string(hash)}
-	if err := s.repo.Create(ctx, user); err != nil {
+	user, err := s.repo.Create(ctx, &User{Name: in.Name, Email: in.Email, Password: hash})
+	if err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) {
 			return nil, ErrEmailTaken
 		}

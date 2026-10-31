@@ -1,9 +1,9 @@
 package auth
 
 import (
-	"errors"
 	"net/http"
 
+	apperr "github.com/Shazzadul-Shakib/go-auth-api/internal/errors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,17 +16,13 @@ func NewHandler(svc *Service) *Handler {
 func (h *Handler) RegisterUserHandler(c *gin.Context) {
 	var in RegisterUser
 	if err := c.ShouldBindJSON(&in); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		apperr.Respond(c, err)
 		return
 	}
 
 	res, err := h.svc.RegisterUser(c.Request.Context(), in)
 	if err != nil {
-		if errors.Is(err, ErrEmailTaken) {
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		apperr.Respond(c, err)
 		return
 	}
 
@@ -37,11 +33,7 @@ func (h *Handler) GetUserByEmailHandler(c *gin.Context) {
 	email := c.Param("email")
 	user, err := h.svc.GetUserByEmail(c.Request.Context(), email)
 	if err != nil {
-		if errors.Is(err, ErrUserNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		apperr.Respond(c, err)
 		return
 	}
 
