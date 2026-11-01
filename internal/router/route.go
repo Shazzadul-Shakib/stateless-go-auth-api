@@ -11,6 +11,7 @@ import (
 
 func New(db *gorm.DB) *gin.Engine {
 	r := gin.Default()
+	r.Use(middleware.CORS())
 	api := r.Group("/api/v1")
 
 	healthHandler := health.NewHandler(health.NewService(db))
