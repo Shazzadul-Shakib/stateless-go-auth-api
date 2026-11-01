@@ -61,3 +61,18 @@ func (h *Handler) LoginHandler(c *gin.Context) {
 }
 
 // refresh token handler
+func (h *Handler) RefreshTokenHandler(c *gin.Context) {
+	var in RefreshTokenRequest
+	if err := c.ShouldBindJSON(&in); err != nil {
+		apperr.Respond(c, err)
+		return
+	}
+
+	res, err := h.svc.RefreshToken(c.Request.Context(), in)
+	if err != nil {
+		apperr.Respond(c, err)
+		return
+	}
+
+	response.JSON(c, http.StatusOK, res, "token refreshed")
+}

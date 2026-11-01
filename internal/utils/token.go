@@ -107,3 +107,11 @@ func ParseToken(tokenString string, typ TokenType) (*Claims, error) {
 	}
 	return claims, nil
 }
+
+func ValidateRefreshToken(tokenString string) (*Claims, error) {
+	claims, err := ParseToken(tokenString, RefreshToken)
+	if err != nil {
+		return nil, err
+	}
+	return claims, nil
+}
