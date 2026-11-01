@@ -66,3 +66,26 @@ func (s *Service) Login(ctx context.Context, in LoginUser) (*LoginResponse, erro
 
 	return &LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }
+
+// refreshToken service
+func (s *Service) RefreshToken(ctx context.Context, in RefreshTokenRequest) (*LoginResponse, error) {
+	claims, err := utils.ParseToken(in.RefreshToken, utils.RefreshToken)
+	if err != nil {
+		if errors.Is(err, utils.ErrInvalidToken) {
+			return nil, ErrInvalidToken
+		}
+		return nil, err
+	}
+
+	accessToken, err := utils.GenerateAccessToken(claims.Subject)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err := utils.GenerateRefreshToken(claims.Subject)
+	if err != nil {
+		return nil, err
+	}
+
+	return &LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken}, nil
+}

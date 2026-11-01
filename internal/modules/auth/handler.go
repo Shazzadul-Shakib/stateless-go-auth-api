@@ -44,7 +44,6 @@ func (h *Handler) GetUserByEmailHandler(c *gin.Context) {
 }
 
 // login handler
-
 func (h *Handler) LoginHandler(c *gin.Context) {
 	var in LoginUser
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -60,3 +59,5 @@ func (h *Handler) LoginHandler(c *gin.Context) {
 
 	response.JSON(c, http.StatusOK, res, "login successful")
 }
+
+// refresh token handler
