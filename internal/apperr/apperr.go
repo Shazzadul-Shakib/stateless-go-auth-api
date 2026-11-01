@@ -1,8 +1,3 @@
-// Package apperr turns any error into a consistent JSON error response for Gin.
-//
-// Response shape:
-//
-//	{"error": {"code": "validation_failed", "message": "...", "details": [{"field": "email", "message": "..."}]}}
 package apperr
 
 import (
@@ -82,8 +77,10 @@ func Respond(c *gin.Context, err error) {
 
 func write(c *gin.Context, status int, code, message string, details ...fieldError) {
 	c.AbortWithStatusJSON(status, struct {
-		Error apiError `json:"error"`
-	}{apiError{Code: code, Message: message, Details: details}})
+		Success bool     `json:"success"`
+		Message string   `json:"message"`
+		Error   apiError `json:"error"`
+	}{false, message, apiError{Code: code, Message: message, Details: details}})
 }
 
 // writeBindError returns false if err is not a ShouldBindJSON error.

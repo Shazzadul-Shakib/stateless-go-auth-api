@@ -3,6 +3,7 @@ package health
 import (
 	"net/http"
 
+	"github.com/Shazzadul-Shakib/go-auth-api/internal/response"
 	"github.com/gin-gonic/gin"
 )
 
@@ -14,9 +15,9 @@ func NewHandler(svc *Service) *Handler {
 
 func (h *Handler) HealthCheck(c *gin.Context) {
 	res := h.svc.Check(c.Request.Context())
-	code := http.StatusOK
+	code, msg := http.StatusOK, "service is healthy"
 	if res.Status != "ok" {
-		code = http.StatusServiceUnavailable
+		code, msg = http.StatusServiceUnavailable, "service is unavailable"
 	}
-	c.JSON(code, res)
+	response.JSON(c, code, res, msg)
 }

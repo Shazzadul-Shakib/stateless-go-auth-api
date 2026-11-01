@@ -7,6 +7,7 @@ import (
 )
 
 var (
-	ErrEmailTaken   = apperr.New(http.StatusConflict, "email_taken", "email already registered")
-	ErrUserNotFound = apperr.New(http.StatusNotFound, "user_not_found", "user not found")
+	ErrEmailTaken         = apperr.New(http.StatusConflict, "email_taken", "email already registered")
+	ErrUserNotFound       = apperr.New(http.StatusNotFound, "user_not_found", "user not found")
+	ErrInvalidCredentials = apperr.New(http.StatusUnauthorized, "invalid_credentials", "invalid email or password")
 )
