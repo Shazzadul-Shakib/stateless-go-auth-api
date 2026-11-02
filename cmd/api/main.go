@@ -29,6 +29,18 @@ func main() {
 	}
 	log.Println("connected to postgres")
 
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		log.Fatal("REDIS_URL is not set")
+	}
+
+	rdb, err := platform.NewRedis(ctx, redisURL)
+	if err != nil {
+		log.Fatal("failed to connect to redis: ", err)
+	}
+	defer rdb.Close()
+	log.Println("connected to redis")
+
 	if err := db.AutoMigrate(&auth.User{}); err != nil {
 		log.Fatal("failed to migrate database: ", err)
 	}
