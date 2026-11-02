@@ -2,8 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/Shazzadul-Shakib/go-auth-api/internal/modules/auth"
 	"github.com/Shazzadul-Shakib/go-auth-api/internal/platform"
@@ -46,8 +51,54 @@ func main() {
 	}
 	log.Println("database migrated")
 
-	router := router.New(db, rdb)
-	if err := router.Run(); err != nil {
-		log.Fatal("server failed: ", err)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           router.New(db, rdb),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	// stop on Ctrl+C (SIGINT) or `docker stop` / Kubernetes (SIGTERM)
+	stop, cancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	serverErr := make(chan error, 1)
+	go func() {
+		log.Println("listening on " + srv.Addr)
+		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
+		}
+	}()
+
+	select {
+	case err := <-serverErr:
+		log.Fatal("server failed: ", err)
+	case <-stop.Done():
+		log.Println("shutdown signal received, draining requests")
+	}
+	cancel() // a second Ctrl+C now kills the process immediately
+
+	// stop accepting new connections and let in-flight requests finish
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout())
+	defer shutdownCancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Println("forced shutdown, some requests were cut off: ", err)
+	}
+
+	// close dependencies only after no request can use them
+	if sqlDB, err := db.DB(); err == nil {
+		_ = sqlDB.Close()
+	}
+	log.Println("server stopped")
+}
+
+// shutdownTimeout is how long in-flight requests get to finish (SHUTDOWN_TIMEOUT, default 10s).
+func shutdownTimeout() time.Duration {
+	if d, err := time.ParseDuration(os.Getenv("SHUTDOWN_TIMEOUT")); err == nil && d > 0 {
+		return d
+	}
+	return 10 * time.Second
 }
