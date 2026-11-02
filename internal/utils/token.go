@@ -2,6 +2,8 @@ package utils
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -11,39 +13,24 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type TokenType string
-
-const (
-	AccessToken  TokenType = "access"
-	RefreshToken TokenType = "refresh"
-)
-
 var ErrInvalidToken = errors.New("invalid token")
 
+// Claims are the access-token claims. SessionID ties the token to the
+// refresh-token session stored in Redis.
 type Claims struct {
-	Type TokenType `json:"type"`
+	SessionID string `json:"sid"`
 	jwt.RegisteredClaims
 }
 
-func secretFor(typ TokenType) ([]byte, error) {
-	env := "JWT_ACCESS_SECRET"
-	if typ == RefreshToken {
-		env = "JWT_REFRESH_SECRET"
-	}
-	secret := os.Getenv(env)
+func accessSecret() ([]byte, error) {
+	secret := os.Getenv("JWT_ACCESS_SECRET")
 	if secret == "" {
-		return nil, fmt.Errorf("%s is not set", env)
+		return nil, errors.New("JWT_ACCESS_SECRET is not set")
 	}
 	return []byte(secret), nil
 }
 
-// ttlFor reads the token lifetime (e.g. "15m", "168h") from the environment,
-// falling back to a default when unset.
-func ttlFor(typ TokenType) (time.Duration, error) {
-	env, def := "JWT_ACCESS_TTL", time.Hour
-	if typ == RefreshToken {
-		env, def = "JWT_REFRESH_TTL", 7*24*time.Hour
-	}
+func durationFromEnv(env string, def time.Duration) (time.Duration, error) {
 	v := os.Getenv(env)
 	if v == "" {
 		return def, nil
@@ -55,24 +42,35 @@ func ttlFor(typ TokenType) (time.Duration, error) {
 	return d, nil
 }
 
-func generateToken(userID string, typ TokenType) (string, error) {
-	secret, err := secretFor(typ)
+// AccessTTL is how long an access token (and its cookie) lives.
+func AccessTTL() (time.Duration, error) {
+	return durationFromEnv("JWT_ACCESS_TTL", 15*time.Minute)
+}
+
+// RefreshTTL is how long a refresh token (and its Redis session) lives.
+func RefreshTTL() (time.Duration, error) {
+	return durationFromEnv("JWT_REFRESH_TTL", 7*24*time.Hour)
+}
+
+// GenerateAccessToken signs a short-lived JWT; it is verified without any Redis lookup.
+func GenerateAccessToken(userID, sessionID string) (string, error) {
+	secret, err := accessSecret()
 	if err != nil {
 		return "", err
 	}
-	ttl, err := ttlFor(typ)
+	ttl, err := AccessTTL()
 	if err != nil {
 		return "", err
 	}
 
-	jti := make([]byte, 16)
-	if _, err := rand.Read(jti); err != nil {
+	jti, err := randomBytes(16)
+	if err != nil {
 		return "", err
 	}
 
 	now := time.Now()
 	claims := Claims{
-		Type: typ,
+		SessionID: sessionID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID,
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -83,17 +81,9 @@ func generateToken(userID string, typ TokenType) (string, error) {
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(secret)
 }
 
-func GenerateAccessToken(userID string) (string, error) {
-	return generateToken(userID, AccessToken)
-}
-
-func GenerateRefreshToken(userID string) (string, error) {
-	return generateToken(userID, RefreshToken)
-}
-
-// ParseToken verifies signature, expiry and that the token is of type typ.
-func ParseToken(tokenString string, typ TokenType) (*Claims, error) {
-	secret, err := secretFor(typ)
+// ParseAccessToken verifies signature and expiry.
+func ParseAccessToken(tokenString string) (*Claims, error) {
+	secret, err := accessSecret()
 	if err != nil {
 		return nil, err
 	}
@@ -102,16 +92,31 @@ func ParseToken(tokenString string, typ TokenType) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(*jwt.Token) (any, error) {
 		return secret, nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}), jwt.WithExpirationRequired())
-	if err != nil || !token.Valid || claims.Type != typ {
+	if err != nil || !token.Valid {
 		return nil, ErrInvalidToken
 	}
 	return claims, nil
 }
 
-func ValidateRefreshToken(tokenString string) (*Claims, error) {
-	claims, err := ParseToken(tokenString, RefreshToken)
+// NewOpaqueToken returns a random 256-bit URL-safe token (used for refresh tokens and session IDs).
+func NewOpaqueToken() (string, error) {
+	b, err := randomBytes(32)
 	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// HashToken is what gets stored in Redis instead of the raw token.
+func HashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
+func randomBytes(n int) ([]byte, error) {
+	b := make([]byte, n)
+	if _, err := rand.Read(b); err != nil {
 		return nil, err
 	}
-	return claims, nil
+	return b, nil
 }

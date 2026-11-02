@@ -16,13 +16,13 @@ var ErrUnauthorized = apperr.New(http.StatusUnauthorized, "unauthorized", "missi
 
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		scheme, token, ok := strings.Cut(c.GetHeader("Authorization"), " ")
-		if !ok || !strings.EqualFold(scheme, "Bearer") || token == "" {
+		token := accessTokenFrom(c)
+		if token == "" {
 			apperr.Respond(c, ErrUnauthorized)
 			return
 		}
 
-		claims, err := utils.ParseToken(token, utils.AccessToken)
+		claims, err := utils.ParseAccessToken(token)
 		if err != nil {
 			apperr.Respond(c, ErrUnauthorized)
 			return
@@ -37,6 +37,15 @@ func Auth() gin.HandlerFunc {
 		c.Set(userIDKey, id)
 		c.Next()
 	}
+}
+
+// accessTokenFrom prefers the Bearer header (mobile/API clients) and falls back to the cookie.
+func accessTokenFrom(c *gin.Context) string {
+	if scheme, token, ok := strings.Cut(c.GetHeader("Authorization"), " "); ok && strings.EqualFold(scheme, "Bearer") {
+		return token
+	}
+	token, _ := c.Cookie(AccessCookie)
+	return token
 }
 
 // UserID returns the logged-in user's ID set by Auth.

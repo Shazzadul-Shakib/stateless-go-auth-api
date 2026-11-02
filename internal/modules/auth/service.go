@@ -5,13 +5,17 @@ import (
 	"errors"
 
 	"github.com/Shazzadul-Shakib/go-auth-api/internal/utils"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-type Service struct{ repo Repository }
+type Service struct {
+	repo     Repository
+	sessions *SessionStore
+}
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, sessions *SessionStore) *Service {
+	return &Service{repo: repo, sessions: sessions}
 }
 
 // RegisterUser service
@@ -54,12 +58,13 @@ func (s *Service) Login(ctx context.Context, in LoginUser) (*LoginResponse, erro
 		return nil, ErrInvalidCredentials
 	}
 
-	accessToken, err := utils.GenerateAccessToken(user.ID.String())
+	userID := user.ID.String()
+	sessionID, refreshToken, err := s.sessions.Create(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := utils.GenerateRefreshToken(user.ID.String())
+	accessToken, err := utils.GenerateAccessToken(userID, sessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -67,25 +72,27 @@ func (s *Service) Login(ctx context.Context, in LoginUser) (*LoginResponse, erro
 	return &LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken}, nil
 }
 
-// refreshToken service
+// refreshToken service: rotates the refresh token and issues a new access token
 func (s *Service) RefreshToken(ctx context.Context, in RefreshTokenRequest) (*LoginResponse, error) {
-	claims, err := utils.ParseToken(in.RefreshToken, utils.RefreshToken)
-	if err != nil {
-		if errors.Is(err, utils.ErrInvalidToken) {
-			return nil, ErrInvalidToken
-		}
-		return nil, err
-	}
-
-	accessToken, err := utils.GenerateAccessToken(claims.Subject)
+	rec, refreshToken, err := s.sessions.Rotate(ctx, in.RefreshToken)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := utils.GenerateRefreshToken(claims.Subject)
+	accessToken, err := utils.GenerateAccessToken(rec.UserID, rec.SessionID)
 	if err != nil {
 		return nil, err
 	}
 
 	return &LoginResponse{AccessToken: accessToken, RefreshToken: refreshToken}, nil
+}
+
+// logout service: ends the session owning the refresh token
+func (s *Service) Logout(ctx context.Context, in RefreshTokenRequest) error {
+	return s.sessions.Revoke(ctx, in.RefreshToken)
+}
+
+// logout-all service: ends every session of the user
+func (s *Service) LogoutAll(ctx context.Context, userID uuid.UUID) error {
+	return s.sessions.RevokeAll(ctx, userID.String())
 }

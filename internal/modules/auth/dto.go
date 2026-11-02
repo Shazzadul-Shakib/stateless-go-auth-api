@@ -35,5 +35,5 @@ type LoginResponse struct {
 	RefreshToken string `json:"refresh_token"`
 }
 type RefreshTokenRequest struct {
-	RefreshToken string `json:"refresh_token" binding:"required"`
+	RefreshToken string `json:"refresh_token"`
 }
